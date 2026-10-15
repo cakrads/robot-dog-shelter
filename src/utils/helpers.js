@@ -35,8 +35,102 @@ export function makeTextTexture({ w = 512, h = 256, bg = '#ffffff', fg = '#22222
   return tex;
 }
 
-export function makeZoneSignTexture(label) {
-  return makeTextTexture({ w: 512, h: 192, bg: '#2EC4B6', fg: '#ffffff', title: label.toUpperCase(), titleSize: 72 });
+export function makeZoneSignTexture(label, fg = '#0F4C46') {
+  // Cream board + dark text (contrast ~10:1), NOT white-on-teal (was 2.17:1, R-25).
+  return makeTextTexture({ w: 512, h: 192, bg: '#FFF8E7', fg, title: label.toUpperCase(), titleSize: 72 });
+}
+
+/** Deterministic pseudo-random (LCG) so generated textures are stable between loads. */
+function seededRandom(seed) {
+  let s = seed >>> 0;
+  return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+}
+
+/** Procedural wood-plank texture (same-origin canvas). Purpose: break up the flat
+ *  single-colour floor (audit 12) with plank seams + grain, no external file. */
+export function makeWoodTexture() {
+  const w = 512, h = 512;
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#C89B6A'; ctx.fillRect(0, 0, w, h);
+  const rnd = seededRandom(7);
+  // Planks: horizontal boards with a darker seam + per-plank tone shift.
+  const plankH = 64;
+  for (let y = 0; y < h; y += plankH) {
+    const tone = 0.92 + rnd() * 0.16;
+    ctx.fillStyle = `rgba(${(200 * tone) | 0},${(155 * tone) | 0},${(106 * tone) | 0},0.55)`;
+    ctx.fillRect(0, y, w, plankH);
+    // Grain streaks inside the plank.
+    ctx.strokeStyle = 'rgba(120, 80, 40, 0.18)'; ctx.lineWidth = 1.5;
+    for (let i = 0; i < 9; i++) {
+      const gy = y + 6 + rnd() * (plankH - 12);
+      ctx.beginPath(); ctx.moveTo(0, gy);
+      for (let x = 0; x <= w; x += 32) ctx.lineTo(x, gy + Math.sin(x * 0.02 + rnd() * 6) * 2.5);
+      ctx.stroke();
+    }
+    // Seam + staggered butt joints.
+    ctx.fillStyle = 'rgba(90, 55, 25, 0.7)'; ctx.fillRect(0, y + plankH - 2, w, 2);
+    const jointX = (y * 37) % w;
+    ctx.fillRect(jointX, y, 2, plankH);
+  }
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+  tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.RepeatWrapping;
+  tex.anisotropy = 4;
+  return tex;
+}
+
+/** Procedural rug texture: cream field + accent border + paw prints.
+ *  Purpose: one identity motif (paw print) per zone, breaks flat floor (audit 12). */
+export function makeRugTexture(accent = '#0F4C46') {
+  const w = 512, h = 384;
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#EFE6D0'; ctx.fillRect(0, 0, w, h);
+  ctx.strokeStyle = accent; ctx.lineWidth = 10; ctx.strokeRect(14, 14, w - 28, h - 28);
+  ctx.lineWidth = 3; ctx.strokeRect(34, 34, w - 68, h - 68);
+  // Paw prints: one pad ellipse + four toe circles, muted accent.
+  const paw = (cx, cy, s, rot) => {
+    ctx.save(); ctx.translate(cx, cy); ctx.rotate(rot); ctx.fillStyle = accent; ctx.globalAlpha = 0.35;
+    ctx.beginPath(); ctx.ellipse(0, 10, 16 * s, 13 * s, 0, 0, Math.PI * 2); ctx.fill();
+    for (const [dx, dy] of [[-18, -8], [-6, -16], [6, -16], [18, -8]]) {
+      ctx.beginPath(); ctx.arc(dx * s, dy * s, 6.5 * s, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore(); ctx.globalAlpha = 1;
+  };
+  paw(w * 0.25, h * 0.5, 1.1, -0.4); paw(w * 0.55, h * 0.5, 1.1, 0.35); paw(w * 0.8, h * 0.5, 1.1, -0.3);
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 4;
+  return tex;
+}
+
+/** Procedural window view: sky gradient + distant silhouette.
+ *  Purpose: outdoor depth cue so windows stop reading as flat cyan slabs (audit 20). */
+export function makeWindowTexture() {
+  const w = 512, h = 320;
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const ctx = c.getContext('2d');
+  const g = ctx.createLinearGradient(0, 0, 0, h);
+  g.addColorStop(0, '#D9F0FF'); g.addColorStop(0.55, '#BFE8FF'); g.addColorStop(1, '#FFE9C9');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+  // Sun glow, low-key.
+  const sun = ctx.createRadialGradient(w * 0.72, h * 0.3, 4, w * 0.72, h * 0.3, 120);
+  sun.addColorStop(0, 'rgba(255, 244, 200, 0.9)'); sun.addColorStop(1, 'rgba(255, 244, 200, 0)');
+  ctx.fillStyle = sun; ctx.fillRect(0, 0, w, h);
+  // Distant hills + rooftops in muted dark teal.
+  ctx.fillStyle = 'rgba(30, 77, 74, 0.55)';
+  ctx.beginPath(); ctx.moveTo(0, h * 0.72);
+  ctx.quadraticCurveTo(w * 0.25, h * 0.5, w * 0.5, h * 0.68);
+  ctx.quadraticCurveTo(w * 0.75, h * 0.82, w, h * 0.62);
+  ctx.lineTo(w, h); ctx.lineTo(0, h); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = 'rgba(30, 77, 74, 0.7)';
+  ctx.fillRect(w * 0.08, h * 0.6, w * 0.18, h * 0.2);
+  ctx.beginPath(); ctx.moveTo(w * 0.06, h * 0.6); ctx.lineTo(w * 0.17, h * 0.48); ctx.lineTo(w * 0.28, h * 0.6); ctx.closePath(); ctx.fill();
+  // One tree blob.
+  ctx.beginPath(); ctx.arc(w * 0.82, h * 0.58, 34, 0, Math.PI * 2); ctx.fill();
+  ctx.fillRect(w * 0.81, h * 0.58, 5, 46);
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 4;
+  return tex;
 }
 
 /** Shared dust-puff pool: sprites that fade + rise, no external textures. */

@@ -144,11 +144,16 @@ export class Game {
     sun.shadow.camera.top = 24; sun.shadow.camera.bottom = -24;
     sun.shadow.camera.far = 60; sun.shadow.bias = -0.0004;
     this.scene.add(sun); this.sun = sun;
-    // 6 warm point lights, one per zone — only the first 2 cast shadows
-    const centres = [[0, 17], [-20, 4.5], [0, 4.5], [20, 4.5], [-20, -12.5], [10, -12.5]];
+    // 6 point lights, one per zone — each with its own mood (audit 9: they were all
+    // identical, which flattened the scene). Sleep is dimmer + warmer, Garden is
+    // brighter + fresher, Groom is cooler daylight for mirrors. Only the first 2 cast shadows.
+    const centres = [
+      [0, 17, 0xffe2b0, 6], [-20, 4.5, 0xffe8c0, 8], [0, 4.5, 0xffd9a8, 4],
+      [20, 4.5, 0xffe0a8, 6.5], [-20, -12.5, 0xe8f0ff, 6], [10, -12.5, 0xeaf7e8, 7.5],
+    ];
     this.pointLights = [];
-    centres.forEach(([x, z], i) => {
-      const p = new THREE.PointLight(0xffd9a0, 7, 22, 1.8);
+    centres.forEach(([x, z, color, intensity], i) => {
+      const p = new THREE.PointLight(color, intensity, 22, 1.8);
       p.position.set(x, 5.2, z);
       if (i < 2) { p.castShadow = true; p.shadow.mapSize.set(512, 512); p.shadow.bias = -0.004; }
       this.scene.add(p); this.pointLights.push(p);
