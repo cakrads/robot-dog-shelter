@@ -4,6 +4,21 @@ A polished, playable 3D robotic dog simulator with a third-person MMORPG-style c
 inside a large indoor dog shelter. Vanilla JavaScript + Three.js + Rapier. Local only —
 no deployment, no CDN game assets, no external fonts/textures/models.
 
+## Screenshots
+
+Captured in-game by the user on their own device (camera angles differ slightly
+between the two shots).
+
+| v0 — tanpa antislop (`main`) | v1 — dengan antislop (`antislop-visual-polish`) |
+|---|---|
+| ![v0, tanpa antislop: teal signs, flat floor](docs/screenshots/v0-no-antislop.png) | ![v1, dengan antislop: cream signs, paw-print rug](docs/screenshots/v1-antislop.png) |
+
+What changed between the two (3D only, see `anti-slop/audit-001-2026-10-15.md`):
+cream signs + dark text (contrast 8.7–10.6:1, was 2.17), wood-plank floor +
+paw-print rugs, wainscot + wood rails, windows with an outdoor view, alternating
+roof/bed colours, per-zone light moods, glow kept on visor + core only.
+Gameplay is identical.
+
 ## Tech stack (exact, pinned in `package.json`)
 
 | Dependency | Version |
