@@ -13,16 +13,19 @@ async function boot() {
   const canvas = document.getElementById('gameCanvas');
   if (!canvas) { showFatal('Game canvas not found.'); return; }
   // WebGL2 availability check with a clear fallback message.
+  // Probe on a throwaway offscreen canvas: probing #gameCanvas itself and
+  // losing its context breaks the renderer Game creates right after
+  // (Three.js then fails with "Cannot read properties of null (reading 'precision')").
   try {
-    const gl = canvas.getContext('webgl2');
+    const probe = document.createElement('canvas');
+    const gl = probe.getContext('webgl2');
     if (!gl) {
       document.getElementById('webglFallback')?.classList.remove('hidden');
       document.getElementById('loading')?.classList.add('hidden');
       return;
     }
-    // Release the probe context; the renderer creates its own.
-    const ext = gl.getExtension('WEBGL_lose_context');
-    ext?.loseContext();
+    // Release only the throwaway probe context; #gameCanvas is untouched.
+    gl.getExtension('WEBGL_lose_context')?.loseContext();
   } catch (err) {
     document.getElementById('webglFallback')?.classList.remove('hidden');
     document.getElementById('loading')?.classList.add('hidden');
